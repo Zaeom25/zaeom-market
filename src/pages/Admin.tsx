@@ -107,6 +107,11 @@ export default function Admin() {
     const [authData, setAuthData] = useState({ email: '', password: '' });
     const [authLoading, setAuthLoading] = useState(false);
 
+    // Password Reset State
+    const [isResettingPassword, setIsResettingPassword] = useState(false);
+    const [resetEmail, setResetEmail] = useState('');
+    const [resetLoading, setResetLoading] = useState(false);
+
     // Product Form State
     const [isProductModalOpen, setIsProductModalOpen] = useState(false);
     const [isSubmitting, setIsSubmitting] = useState(false);
@@ -149,13 +154,20 @@ export default function Admin() {
         position: 0
     });
 
+    // Password Recovery State
+    const [isPasswordRecoveryOpen, setIsPasswordRecoveryOpen] = useState(false);
+    const [newPassword, setNewPassword] = useState('');
+
     useEffect(() => {
         supabase.auth.getSession().then(({ data: { session } }) => {
             setSession(session);
         });
 
-        const { data: { subscription } } = supabase.auth.onAuthStateChange((_event, session) => {
+        const { data: { subscription } } = supabase.auth.onAuthStateChange((event, session) => {
             setSession(session);
+            if (event === 'PASSWORD_RECOVERY') {
+                setIsPasswordRecoveryOpen(true);
+            }
         });
 
         return () => subscription.unsubscribe();
@@ -421,6 +433,40 @@ export default function Admin() {
         }
     };
 
+    const handlePasswordReset = async (e: React.FormEvent) => {
+        e.preventDefault();
+        setResetLoading(true);
+        try {
+            const { error } = await supabase.auth.resetPasswordForEmail(resetEmail, {
+                redirectTo: `${window.location.origin}/admin`
+            });
+            if (error) throw error;
+            alert('Email de redefinição enviado! Verifique sua caixa de entrada.');
+            setIsResettingPassword(false);
+            setResetEmail('');
+        } catch (error: any) {
+            alert(error.message);
+        } finally {
+            setResetLoading(false);
+        }
+    };
+
+    const handleUpdatePassword = async (e: React.FormEvent) => {
+        e.preventDefault();
+        setIsSubmitting(true);
+        try {
+            const { error } = await supabase.auth.updateUser({ password: newPassword });
+            if (error) throw error;
+            alert('Senha atualizada com sucesso!');
+            setIsPasswordRecoveryOpen(false);
+            setNewPassword('');
+        } catch (error: any) {
+            alert(error.message);
+        } finally {
+            setIsSubmitting(false);
+        }
+    };
+
     const handleAuth = async (e: React.FormEvent) => {
         e.preventDefault();
         setAuthLoading(true);
@@ -543,13 +589,24 @@ export default function Admin() {
                             <h2 className="text-3xl font-bold tracking-tight">Admin <span className="neon-text">Access</span></h2>
                             <p className="text-zaeom-gray text-sm">Identifique-se para acessar o painel.</p>
                         </div>
-                        <form onSubmit={handleAuth} className="space-y-4 text-left">
-                            <input required type="email" value={authData.email} onChange={e => setAuthData({ ...authData, email: e.target.value })} placeholder="E-mail" className="w-full bg-white/5 border border-white/10 rounded-2xl px-5 py-3.5" />
-                            <input required type="password" value={authData.password} onChange={e => setAuthData({ ...authData, password: e.target.value })} placeholder="Senha" className="w-full bg-white/5 border border-white/10 rounded-2xl px-5 py-3.5" />
-                            <button disabled={authLoading} className="w-full bg-zaeom-neon text-black font-bold py-4 rounded-2xl hover:shadow-[0_0_30px_rgba(0,224,85,0.4)] flex items-center justify-center transition-all">
-                                {authLoading ? <Loader2 className="animate-spin" size={20} /> : 'DESTRAVAR ACESSO'}
-                            </button>
-                        </form>
+                        {isResettingPassword ? (
+                            <form onSubmit={handlePasswordReset} className="space-y-4 text-left">
+                                <input required type="email" value={resetEmail} onChange={e => setResetEmail(e.target.value)} placeholder="Seu e-mail de acesso" className="w-full bg-white/5 border border-white/10 rounded-2xl px-5 py-3.5 text-white" />
+                                <button disabled={resetLoading} className="w-full bg-zaeom-neon text-black font-bold py-4 rounded-2xl hover:shadow-[0_0_30px_rgba(0,224,85,0.4)] flex items-center justify-center transition-all cursor-pointer">
+                                    {resetLoading ? <Loader2 className="animate-spin" size={20} /> : 'ENVIAR LINK DE RECUPERAÇÃO'}
+                                </button>
+                                <button type="button" onClick={() => setIsResettingPassword(false)} className="w-full text-zaeom-gray text-sm hover:text-white transition-colors cursor-pointer">Voltar para o login</button>
+                            </form>
+                        ) : (
+                            <form onSubmit={handleAuth} className="space-y-4 text-left">
+                                <input required type="email" value={authData.email} onChange={e => setAuthData({ ...authData, email: e.target.value })} placeholder="E-mail" className="w-full bg-white/5 border border-white/10 rounded-2xl px-5 py-3.5 text-white" />
+                                <input required type="password" value={authData.password} onChange={e => setAuthData({ ...authData, password: e.target.value })} placeholder="Senha" className="w-full bg-white/5 border border-white/10 rounded-2xl px-5 py-3.5 text-white" />
+                                <button disabled={authLoading} className="w-full bg-zaeom-neon text-black font-bold py-4 rounded-2xl hover:shadow-[0_0_30px_rgba(0,224,85,0.4)] flex items-center justify-center transition-all cursor-pointer">
+                                    {authLoading ? <Loader2 className="animate-spin" size={20} /> : 'DESTRAVAR ACESSO'}
+                                </button>
+                                <button type="button" onClick={() => setIsResettingPassword(true)} className="w-full text-zaeom-gray text-sm hover:text-white transition-colors mt-2 cursor-pointer">Esqueci minha senha</button>
+                            </form>
+                        )}
                     </div>
                 </div>
             </DashboardLayout>
@@ -1320,6 +1377,58 @@ export default function Admin() {
                                     </button>
                                 </form>
                             </div>
+                        </motion.div>
+                    </div>
+                )}
+            </AnimatePresence>
+
+            {/* Password Recovery Modal */}
+            <AnimatePresence>
+                {isPasswordRecoveryOpen && (
+                    <div className="fixed inset-0 z-[100] flex items-center justify-center p-4">
+                        <motion.div
+                            initial={{ opacity: 0 }}
+                            animate={{ opacity: 1 }}
+                            exit={{ opacity: 0 }}
+                            className="absolute inset-0 bg-black/80 backdrop-blur-md"
+                        />
+                        <motion.div
+                            initial={{ opacity: 0, scale: 0.95 }}
+                            animate={{ opacity: 1, scale: 1 }}
+                            exit={{ opacity: 0, scale: 0.95 }}
+                            className="relative w-full max-w-md bg-zaeom-bg border border-white/10 rounded-[2.5rem] shadow-2xl p-10"
+                        >
+                            <div className="text-center space-y-4 mb-8">
+                                <div className="w-16 h-16 bg-zaeom-neon/10 rounded-full flex items-center justify-center text-zaeom-neon mx-auto border border-zaeom-neon/20">
+                                    <ShieldCheck size={32} />
+                                </div>
+                                <h3 className="text-2xl font-bold tracking-tight text-white">Nova <span className="text-zaeom-neon">Senha</span></h3>
+                                <p className="text-zaeom-gray text-xs font-bold uppercase tracking-widest opacity-60">Defina sua nova credencial de acesso.</p>
+                            </div>
+
+                            <form onSubmit={handleUpdatePassword} className="space-y-4">
+                                <div className="space-y-2">
+                                    <label className="text-[10px] font-bold text-zaeom-gray uppercase tracking-widest ml-1">Nova Senha</label>
+                                    <input
+                                        required
+                                        type="password"
+                                        value={newPassword}
+                                        onChange={e => setNewPassword(e.target.value)}
+                                        className="w-full bg-white/5 border border-white/10 rounded-2xl px-5 py-4 focus:border-zaeom-neon/40 transition-all font-bold text-white outline-none"
+                                        placeholder="Mínimo 6 caracteres"
+                                        minLength={6}
+                                    />
+                                </div>
+
+                                <button
+                                    disabled={isSubmitting}
+                                    type="submit"
+                                    className="w-full bg-zaeom-neon text-black font-black text-sm tracking-widest py-5 rounded-[1.5rem] hover:shadow-[0_0_30px_rgba(0,224,85,0.4)] transition-all flex items-center justify-center space-x-2 mt-4 disabled:opacity-50"
+                                >
+                                    {isSubmitting ? <Loader2 className="animate-spin" size={20} /> : <Check size={20} />}
+                                    <span>ATUALIZAR SENHA</span>
+                                </button>
+                            </form>
                         </motion.div>
                     </div>
                 )}
