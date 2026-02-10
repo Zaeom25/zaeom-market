@@ -61,6 +61,7 @@ const DashboardLayout: React.FC<DashboardLayoutProps> = ({ children }) => {
     const [expandedGroups, setExpandedGroups] = useState<string[]>([]);
     const [userEmail, setUserEmail] = useState<string | null>(null);
     const [userRole, setUserRole] = useState<string | null>(null);
+    const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
     const [isMobileSearchOpen, setIsMobileSearchOpen] = useState(false);
     const location = useLocation();
     const navigate = useNavigate();
@@ -70,6 +71,7 @@ const DashboardLayout: React.FC<DashboardLayoutProps> = ({ children }) => {
         if (location.pathname !== '/') {
             navigate('/');
         }
+        setIsMobileMenuOpen(false); // Close mobile menu on validation
     };
 
     useEffect(() => {
@@ -315,42 +317,150 @@ const DashboardLayout: React.FC<DashboardLayoutProps> = ({ children }) => {
                 </div>
             </motion.aside>
 
-            {/* Mobile Bottom Navigation style App */}
-            <nav className="md:hidden fixed bottom-0 left-0 right-0 z-[100] bg-black/80 backdrop-blur-2xl border-t border-white/5 px-4 pb-safe-offset-2">
+            {/* Mobile Sidebar Overlay */}
+            <AnimatePresence>
+                {isMobileMenuOpen && (
+                    <>
+                        <motion.div
+                            initial={{ opacity: 0 }}
+                            animate={{ opacity: 1 }}
+                            exit={{ opacity: 0 }}
+                            onClick={() => setIsMobileMenuOpen(false)}
+                            className="fixed inset-0 bg-black/80 backdrop-blur-sm z-[90] md:hidden"
+                        />
+                        <motion.aside
+                            initial={{ x: '-100%' }}
+                            animate={{ x: 0 }}
+                            exit={{ x: '-100%' }}
+                            transition={{ type: "spring", damping: 25, stiffness: 200 }}
+                            className="fixed inset-y-0 left-0 w-[280px] bg-[#050505] border-r border-white/5 z-[100] md:hidden flex flex-col shadow-2xl"
+                        >
+                            <div className="p-6 flex items-center justify-between border-b border-white/5">
+                                <span className="font-black text-lg tracking-tighter uppercase whitespace-nowrap">
+                                    {(settings?.site_name || 'ZAEOM').toUpperCase().split(' ')[0]}
+                                    <span className="text-zaeom-neon">.</span>
+                                </span>
+                                <button onClick={() => setIsMobileMenuOpen(false)} className="p-2 text-zaeom-gray hover:text-white">
+                                    <ChevronLeft size={20} />
+                                </button>
+                            </div>
+
+                            <div className="flex-1 overflow-y-auto p-4 space-y-6 custom-scrollbar">
+                                {/* General Section */}
+                                <div className="space-y-2">
+                                    <span className="px-2 text-[10px] font-black text-zaeom-gray uppercase tracking-[0.3em] opacity-40">Explorar</span>
+                                    <button
+                                        onClick={() => handleCategoryClick(null)}
+                                        className={`w-full flex items-center p-3 rounded-xl transition-all group ${activeCategory === null && location.pathname === '/'
+                                            ? 'bg-white/5 text-zaeom-neon border border-zaeom-neon/20 shadow-inner'
+                                            : 'text-zaeom-gray hover:bg-white/5 hover:text-white'
+                                            }`}
+                                    >
+                                        <Grid3X3 size={18} className={activeCategory === null ? 'text-zaeom-neon' : ''} />
+                                        <span className="ml-3 font-bold text-sm tracking-tight">Marketplace Hub</span>
+                                    </button>
+                                </div>
+
+                                {/* Categories Section */}
+                                <div className="space-y-3">
+                                    <span className="px-2 text-[10px] font-black text-zaeom-gray uppercase tracking-[0.3em] opacity-40">Categorias</span>
+                                    <div className="space-y-1">
+                                        {rootCategories.map((cat) => {
+                                            const IconComp = ICON_MAP[cat.icon || ''] || Monitor;
+                                            const subcats = categories.filter(s => s.parent_id === cat.id);
+                                            const isExpanded = expandedGroups.includes(cat.id);
+                                            const isActive = activeCategory === cat.slug || subcats.some(s => s.slug === activeCategory);
+
+                                            return (
+                                                <div key={cat.id} className="space-y-1">
+                                                    <button
+                                                        onClick={() => handleCategoryClick(cat.slug)}
+                                                        className={`w-full flex items-center p-3 rounded-xl transition-all group relative ${isActive
+                                                            ? 'bg-white/5 text-zaeom-neon border border-white/5'
+                                                            : 'text-zaeom-gray hover:bg-white/5 hover:text-white'
+                                                            }`}
+                                                    >
+                                                        <IconComp size={18} className={isActive ? 'text-zaeom-neon' : ''} />
+                                                        <span className="ml-3 font-bold text-sm tracking-tight flex-1 text-left">{cat.name}</span>
+                                                        {subcats.length > 0 && (
+                                                            <div
+                                                                onClick={(e) => toggleGroup(cat.id, e)}
+                                                                className="p-1 hover:bg-white/10 rounded-lg"
+                                                            >
+                                                                <ChevronDown size={14} className={`transition-transform duration-300 ${isExpanded ? 'rotate-180' : ''}`} />
+                                                            </div>
+                                                        )}
+                                                    </button>
+
+                                                    <AnimatePresence>
+                                                        {subcats.length > 0 && isExpanded && (
+                                                            <motion.div
+                                                                initial={{ height: 0, opacity: 0 }}
+                                                                animate={{ height: 'auto', opacity: 1 }}
+                                                                exit={{ height: 0, opacity: 0 }}
+                                                                className="ml-4 pl-4 border-l border-white/5 space-y-1"
+                                                            >
+                                                                {subcats.map(sub => (
+                                                                    <button
+                                                                        key={sub.id}
+                                                                        onClick={() => handleCategoryClick(sub.slug)}
+                                                                        className={`w-full text-left py-2 text-xs font-bold tracking-tight transition-all ${activeCategory === sub.slug
+                                                                            ? 'text-zaeom-neon'
+                                                                            : 'text-zaeom-gray hover:text-white'
+                                                                            }`}
+                                                                    >
+                                                                        {sub.name}
+                                                                    </button>
+                                                                ))}
+                                                            </motion.div>
+                                                        )}
+                                                    </AnimatePresence>
+                                                </div>
+                                            );
+                                        })}
+                                    </div>
+                                </div>
+                            </div>
+                        </motion.aside>
+                    </>
+                )}
+            </AnimatePresence>
+
+            {/* Mobile Bottom Navigation */}
+            <nav className="md:hidden fixed bottom-0 left-0 right-0 z-[80] bg-black/90 backdrop-blur-xl border-t border-white/5 px-6 pb-safe-offset-4 pt-1">
                 <div className="flex items-center justify-around h-20">
                     <button
+                        onClick={() => setIsMobileMenuOpen(true)}
+                        className={`flex flex-col items-center space-y-1.5 transition-all text-zaeom-gray hover:text-white`}
+                    >
+                        <Layout size={22} />
+                        <span className="text-[9px] font-black uppercase tracking-widest">Menu</span>
+                    </button>
+
+                    <button
                         onClick={() => handleCategoryClick(null)}
-                        className={`flex flex-col items-center space-y-1 transition-all ${activeCategory === null && location.pathname === '/' ? 'text-zaeom-neon' : 'text-zaeom-gray'}`}
+                        className={`flex flex-col items-center space-y-1.5 transition-all transform -translate-y-4 bg-zaeom-neon text-black p-4 rounded-full shadow-[0_0_20px_rgba(0,224,85,0.4)] border-4 border-[#050505]`}
                     >
                         <Grid3X3 size={24} />
-                        <span className="text-[10px] font-black uppercase tracking-tighter">Market</span>
                     </button>
 
-                    <button
-                        onClick={() => setIsMobileSearchOpen(!isMobileSearchOpen)}
-                        className={`flex flex-col items-center space-y-1 transition-all ${isMobileSearchOpen ? 'text-zaeom-neon' : 'text-zaeom-gray'}`}
-                    >
-                        <Search size={24} />
-                        <span className="text-[10px] font-black uppercase tracking-tighter">Busca</span>
-                    </button>
-
-                    {canAccessAdmin && (
+                    {canAccessAdmin ? (
                         <Link
                             to="/admin"
-                            className={`flex flex-col items-center space-y-1 transition-all ${location.pathname === '/admin' ? 'text-zaeom-neon' : 'text-zaeom-gray'}`}
+                            className={`flex flex-col items-center space-y-1.5 transition-all ${location.pathname === '/admin' ? 'text-white' : 'text-zaeom-gray'}`}
                         >
-                            <ShieldAlert size={24} />
-                            <span className="text-[10px] font-black uppercase tracking-tighter">Admin</span>
+                            <ShieldAlert size={22} />
+                            <span className="text-[9px] font-black uppercase tracking-widest">Admin</span>
                         </Link>
+                    ) : (
+                        <button
+                            onClick={() => setIsMobileSearchOpen(!isMobileSearchOpen)}
+                            className={`flex flex-col items-center space-y-1.5 transition-all ${isMobileSearchOpen ? 'text-white' : 'text-zaeom-gray'}`}
+                        >
+                            <Search size={22} />
+                            <span className="text-[9px] font-black uppercase tracking-widest">Busca</span>
+                        </button>
                     )}
-
-                    <button
-                        onClick={handleLogout}
-                        className="flex flex-col items-center space-y-1 text-zaeom-gray"
-                    >
-                        <LogOut size={24} />
-                        <span className="text-[10px] font-black uppercase tracking-tighter">Sair</span>
-                    </button>
                 </div>
             </nav>
 
