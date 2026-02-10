@@ -1,0 +1,153 @@
+@import "tailwindcss";
+
+@theme {
+  --color-zaeom-bg: #050505;
+  --color-zaeom-neon: #00E055;
+  --color-zaeom-gray: #9CA3AF;
+
+  --font-sans: "Inter", system-ui, -apple-system, sans-serif;
+}
+
+:root {
+  font-family: var(--font-sans);
+  background-color: var(--color-zaeom-bg);
+  color: white;
+}
+
+body {
+  position: relative;
+  min-height: 100vh;
+  margin: 0;
+  background-color: var(--color-zaeom-bg);
+}
+
+button,
+a,
+input[type="button"],
+input[type="submit"],
+input[type="checkbox"],
+input[type="radio"],
+select,
+.cursor-pointer,
+[role="button"] {
+  cursor: pointer !important;
+}
+
+/* Subtle Dot Grid Pattern */
+body::before {
+  content: "";
+  position: fixed;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+  background-image:
+    radial-gradient(circle, rgba(0, 224, 85, 0.05) 1px, transparent 1px);
+  background-size: 24px 24px;
+  pointer-events: none;
+  z-index: 0;
+}
+
+#root {
+  position: relative;
+  z-index: 1;
+}
+
+.glass-card {
+  background: rgba(255, 255, 255, 0.03);
+  backdrop-filter: blur(12px);
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+.glass-card:hover {
+  border-color: rgba(0, 224, 85, 0.3);
+  box-shadow: 0 0 30px rgba(0, 224, 85, 0.1);
+  background: rgba(255, 255, 255, 0.05);
+}
+
+.neon-text {
+  color: var(--color-zaeom-neon);
+  text-shadow: 0 0 10px rgba(0, 224, 85, 0.5);
+}
+
+.neon-border {
+  border-color: var(--color-zaeom-neon);
+  box-shadow: 0 0 15px rgba(0, 224, 85, 0.3);
+}
+
+/* Custom scrollbar for deep dark theme */
+::-webkit-scrollbar {
+  width: 8px;
+}
+
+::-webkit-scrollbar-track {
+  background: var(--color-zaeom-bg);
+}
+
+::-webkit-scrollbar-thumb {
+  background: #222;
+  border-radius: 4px;
+}
+
+::-webkit-scrollbar-thumb:hover {
+  background: #333;
+}
+
+/* Custom Quill Styles for Zaeom Ecosystem */
+.ql-toolbar.ql-snow {
+  background: rgba(255, 255, 255, 0.03) !important;
+  border: 1px solid rgba(255, 255, 255, 0.08) !important;
+  border-bottom: none !important;
+  border-radius: 1.25rem 1.25rem 0 0 !important;
+  padding: 12px 20px !important;
+}
+
+.ql-container.ql-snow {
+  background: rgba(255, 255, 255, 0.01) !important;
+  border: 1px solid rgba(255, 255, 255, 0.08) !important;
+  border-radius: 0 0 1.25rem 1.25rem !important;
+  font-family: inherit !important;
+  font-size: 0.875rem !important;
+  min-height: 150px !important;
+}
+
+.ql-editor {
+  color: #f3f4f6 !important;
+  line-height: 1.7 !important;
+}
+
+.ql-editor.ql-blank::before {
+  color: #4b5563 !important;
+  font-style: normal !important;
+  font-weight: 500 !important;
+}
+
+.ql-snow .ql-stroke {
+  stroke: #9CA3AF !important;
+}
+
+.ql-snow .ql-fill {
+  fill: #9CA3AF !important;
+}
+
+.ql-snow .ql-picker {
+  color: #9CA3AF !important;
+}
+
+.ql-snow.ql-toolbar button:hover .ql-stroke,
+.ql-snow.ql-toolbar button:hover .ql-fill,
+.ql-snow.ql-toolbar button.ql-active .ql-stroke,
+.ql-snow.ql-toolbar button.ql-active .ql-fill {
+  stroke: var(--color-zaeom-neon) !important;
+}
+
+.ql-snow .ql-picker-label:hover,
+.ql-snow .ql-picker-label.ql-active {
+  color: var(--color-zaeom-neon) !important;
+}
+
+.ql-snow .ql-picker-options {
+  background-color: #0A0A0A !important;
+  border-color: rgba(255, 255, 255, 0.1) !important;
+}
