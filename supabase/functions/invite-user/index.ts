@@ -8,7 +8,6 @@ const corsHeaders = {
 }
 
 serve(async (req: Request) => {
-    // Handle CORS
     if (req.method === 'OPTIONS') {
         return new Response('ok', { headers: corsHeaders })
     }
@@ -19,96 +18,35 @@ serve(async (req: Request) => {
         const serviceRoleKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY') ?? '';
 
         const authHeader = req.headers.get('Authorization');
+        if (!authHeader) throw new Error('Célula de Segurança: JWT não encontrado.');
 
-        if (!authHeader) {
-            return new Response(JSON.stringify({ error: 'Falta o cabeçalho de Autorização (JWT).' }), {
-                headers: { ...corsHeaders, 'Content-Type': 'application/json' },
-                status: 401,
-            });
-        }
+        const supabaseClient = createClient(supabaseUrl, supabaseAnonKey, {
+            global: { headers: { Authorization: authHeader } }
+        });
 
-        // Initialize client with the user's JWT to verify their identity
-        const supabaseClient = createClient(
-            supabaseUrl,
-            supabaseAnonKey,
-            {
-                global: {
-                    headers: { Authorization: authHeader }
-                }
-            }
-        );
-
-        // Get the user from the JWT
         const { data: { user }, error: userError } = await supabaseClient.auth.getUser();
+        if (userError || !user) throw new Error('Acesso negado: Sessão inválida.');
 
-        if (userError || !user) {
-            return new Response(JSON.stringify({ error: 'Sessão inválida ou expirada. Faça login novamente.', details: userError?.message }), {
-                headers: { ...corsHeaders, 'Content-Type': 'application/json' },
-                status: 401,
-            });
-        }
+        const { data: profile } = await supabaseClient.from('profiles').select('role').eq('id', user.id).single();
+        const isMaster = user.email === 'danilomouraoficial@gmail.com' || profile?.role === 'master' || profile?.role === 'admin';
 
-        // Check if user has permission
-        const { data: profile, error: profileError } = await supabaseClient
-            .from('profiles')
-            .select('role')
-            .eq('id', user.id)
-            .single();
+        if (!isMaster) throw new Error('Acesso negado: Apenas o escalão superior pode convidar membros.');
 
-        const isMasterEmail = user.email === 'danilomouraoficial@gmail.com';
-        const hasPermission = profile?.role === 'admin' || profile?.role === 'master' || isMasterEmail;
+        const { email, full_name, role } = await req.json();
 
-        if (!hasPermission) {
-            return new Response(JSON.stringify({ error: 'Acesso negado. Apenas administradores podem convidar usuários.' }), {
-                headers: { ...corsHeaders, 'Content-Type': 'application/json' },
-                status: 403,
-            });
-        }
-
-        // Process Payload
-        const body = await req.json();
-        const { email, full_name, role } = body;
-
-        if (!email) {
-            return new Response(JSON.stringify({ error: 'E-mail é obrigatório.' }), {
-                headers: { ...corsHeaders, 'Content-Type': 'application/json' },
-                status: 400,
-            });
-        }
-
-        if (!serviceRoleKey) {
-            return new Response(JSON.stringify({ error: 'SUPABASE_SERVICE_ROLE_KEY não configurada no servidor.' }), {
-                headers: { ...corsHeaders, 'Content-Type': 'application/json' },
-                status: 500,
-            });
-        }
+        if (!serviceRoleKey) throw new Error('Configuração crítica ausente: SERVICE_ROLE_KEY.');
 
         const supabaseAdmin = createClient(supabaseUrl, serviceRoleKey);
 
-        // Invite User via Admin Auth API
+        // Convidar com metadados para o trigger processar
         const { data: inviteData, error: inviteError } = await supabaseAdmin.auth.admin.inviteUserByEmail(email, {
-            data: { full_name, role }
+            data: { full_name, role },
+            redirectTo: `${new URL(req.url).origin}/admin`
         });
 
-        if (inviteError) {
-            return new Response(JSON.stringify({ error: inviteError.message }), {
-                headers: { ...corsHeaders, 'Content-Type': 'application/json' },
-                status: 400,
-            });
-        }
+        if (inviteError) throw inviteError;
 
-        // Upsert Profile
-        const { error: upsertError } = await supabaseAdmin
-            .from('profiles')
-            .upsert({
-                id: inviteData.user.id,
-                email,
-                role,
-                full_name,
-                updated_at: new Date().toISOString()
-            });
-
-        return new Response(JSON.stringify({ message: 'Convite enviado com sucesso!', user: inviteData.user }), {
+        return new Response(JSON.stringify({ message: 'Acesso liberado e convite enviado!', user: inviteData.user }), {
             headers: { ...corsHeaders, 'Content-Type': 'application/json' },
             status: 200,
         });
@@ -116,7 +54,7 @@ serve(async (req: Request) => {
     } catch (error: any) {
         return new Response(JSON.stringify({ error: error.message }), {
             headers: { ...corsHeaders, 'Content-Type': 'application/json' },
-            status: 500,
+            status: 400,
         });
     }
 })
